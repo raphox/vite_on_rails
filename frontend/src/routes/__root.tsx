@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import {
   HeadContent,
@@ -20,8 +25,39 @@ export const Route = createRootRoute({
   component: RootComponent,
 });
 
+function isUnauthorizedError(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 401
+  ) {
+    return true;
+  }
+
+  return error instanceof Error && error.message.includes("status 401");
+}
+
+function handleRequestError(error: unknown) {
+  if (!isUnauthorizedError(error) || window.location.pathname === "/session/new") {
+    return;
+  }
+
+  window.location.assign("/session/new");
+}
+
 function RootComponent() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        queryCache: new QueryCache({
+          onError: handleRequestError,
+        }),
+        mutationCache: new MutationCache({
+          onError: handleRequestError,
+        }),
+      }),
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
